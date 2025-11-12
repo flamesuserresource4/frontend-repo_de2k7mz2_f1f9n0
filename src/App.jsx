@@ -1,15 +1,47 @@
-import { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Spline from '@splinetool/react-spline'
+
+// Simple Error Boundary to prevent Spline runtime errors from crashing the page
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false }
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+  componentDidCatch(error, info) {
+    console.error('ErrorBoundary caught:', error, info)
+  }
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || null
+    }
+    return this.props.children
+  }
+}
 
 function App() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [webgl, setWebgl] = useState(true)
+
+  // Detect WebGL availability to decide whether to render Spline
+  useEffect(() => {
+    try {
+      const canvas = document.createElement('canvas')
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
+      setWebgl(!!gl)
+    } catch (e) {
+      setWebgl(false)
+    }
+  }, [])
 
   const Nav = () => (
     <header className="fixed top-0 inset-x-0 z-50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mt-4 rounded-2xl border border-white/40 bg-white/60 backdrop-blur-xl shadow-[0_10px_40px_-10px_rgba(16,24,40,0.15)]">
+        <div className="mt-4 rounded-2xl border border-white/40 bg-white/60 backdrop-blur-xl shadow-[0_10px_40px_-10px_rgba(16,24,40,0.15)]" role="navigation" aria-label="Primary">
           <div className="flex items-center justify-between px-4 py-3">
-            <a href="#" className="flex items-center gap-2">
+            <a href="#" className="flex items-center gap-2" aria-label="AtheronLabs home">
               <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-blue-600 to-red-500" />
               <span className="text-xl font-semibold tracking-tight text-slate-900">atheron<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-red-500">labs</span></span>
             </a>
@@ -21,8 +53,8 @@ function App() {
               <a href="#contact" className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-blue-600 to-red-500 text-white px-4 py-2 text-sm font-semibold shadow-lg shadow-blue-600/20 hover:opacity-95 transition">Let’s talk</a>
             </nav>
 
-            <button aria-label="Open Menu" className="md:hidden inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white/60 backdrop-blur" onClick={() => setMobileOpen(!mobileOpen)}>
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <button aria-label="Toggle Menu" aria-expanded={mobileOpen} className="md:hidden inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white/60 backdrop-blur" onClick={() => setMobileOpen(!mobileOpen)}>
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 {mobileOpen ? (
                   <path d="M18 6L6 18M6 6l12 12" />
                 ) : (
@@ -51,6 +83,15 @@ function App() {
       <p className="text-sm font-semibold tracking-wide text-blue-600">{eyebrow}</p>
       <h2 className="mt-2 text-3xl sm:text-4xl font-bold text-slate-900">{title}</h2>
       {desc && <p className="mt-3 text-slate-600">{desc}</p>}
+    </div>
+  )
+
+  const splineFallback = (
+    <div className="flex h-full w-full items-center justify-center bg-white/50">
+      <div className="text-center p-6">
+        <div className="mx-auto h-12 w-12 rounded-xl bg-gradient-to-br from-blue-600 to-red-500 opacity-70" />
+        <p className="mt-4 text-sm text-slate-600">Your browser or environment doesn’t support WebGL. Showing a static preview.</p>
+      </div>
     </div>
   )
 
@@ -88,7 +129,13 @@ function App() {
               </div>
             </div>
             <div className="h-[420px] sm:h-[520px] lg:h-[560px] rounded-3xl overflow-hidden border border-white/40 bg-white/30 backdrop-blur-xl shadow-[0_20px_80px_-20px_rgba(59,130,246,0.35)]">
-              <Spline scene="https://prod.spline.design/41MGRk-UDPKO-l6W/scene.splinecode" style={{ width: '100%', height: '100%' }} />
+              {webgl ? (
+                <ErrorBoundary fallback={splineFallback}>
+                  <Spline scene="https://prod.spline.design/41MGRk-UDPKO-l6W/scene.splinecode" style={{ width: '100%', height: '100%' }} />
+                </ErrorBoundary>
+              ) : (
+                splineFallback
+              )}
             </div>
           </div>
         </div>
@@ -166,22 +213,22 @@ function App() {
       <section id="contact" className="relative py-24 sm:py-28">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
           <SectionTitle eyebrow="Let’s build" title="Tell us about your project" />
-          <form className="mt-10 rounded-2xl border border-white/50 bg-white/70 backdrop-blur-xl p-6 shadow-md grid gap-4 sm:grid-cols-2">
+          <form className="mt-10 rounded-2xl border border-white/50 bg-white/70 backdrop-blur-xl p-6 shadow-md grid gap-4 sm:grid-cols-2" onSubmit={(e) => e.preventDefault()}>
             <div className="sm:col-span-1">
               <label className="block text-sm font-medium text-slate-700">Name</label>
-              <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Jane Doe" />
+              <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Jane Doe" aria-label="Name" />
             </div>
             <div className="sm:col-span-1">
               <label className="block text-sm font-medium text-slate-700">Email</label>
-              <input type="email" className="mt-1 w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="jane@company.com" />
+              <input type="email" className="mt-1 w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="jane@company.com" aria-label="Email" />
             </div>
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-slate-700">Project details</label>
-              <textarea rows="4" className="mt-1 w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Timeline, scope, budget..." />
+              <textarea rows="4" className="mt-1 w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Timeline, scope, budget..." aria-label="Project details" />
             </div>
             <div className="sm:col-span-2 flex items-center justify-between">
               <p className="text-sm text-slate-500">We’ll get back within 1–2 business days.</p>
-              <button type="button" className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-red-500 text-white px-5 py-2.5 text-sm font-semibold shadow-lg shadow-blue-600/25 hover:opacity-95 transition">Send message</button>
+              <button type="submit" className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-red-500 text-white px-5 py-2.5 text-sm font-semibold shadow-lg shadow-blue-600/25 hover:opacity-95 transition">Send message</button>
             </div>
           </form>
         </div>
